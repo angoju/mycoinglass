@@ -1,3 +1,4 @@
+
 export interface CoinData {
   symbol: string;
   price: number;
@@ -28,6 +29,12 @@ export interface MarketSentiment {
   btcDominance: number;
   totalMarketCap: number;
   totalVolume24h: number;
+}
+
+export interface MarketDataResponse {
+  coins: CoinData[];
+  sentiment: MarketSentiment;
+  source: 'API' | 'BACKUP';
 }
 
 export type TimeFrame = '1h' | '4h' | '12h' | '24h';

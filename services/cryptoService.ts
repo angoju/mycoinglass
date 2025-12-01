@@ -1,115 +1,160 @@
 import { CoinData, MarketSentiment, SignalDirection } from '../types';
 
-// Initial seed data for top coins
-const COINS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'TRX', 'LTC', 'LINK', 'ATOM', 'UNI', 'ETC', 'FIL', 'NEAR', 'AAVE', 'QNT', 'ALGO'];
+// API Configuration
+const COINCAP_API = 'https://api.coincap.io/v2/assets?limit=25';
 
-const generateRandomHistory = (startPrice: number, points: number = 24): number[] => {
-  let currentPrice = startPrice;
+// Robust Fallback Data (Snapshot) to ensure UI never breaks if API fails
+const FALLBACK_DATA = [
+  { symbol: 'BTC', priceUsd: '96450.20', changePercent24Hr: '2.45', volumeUsd24Hr: '45000000000', marketCapUsd: '1900000000000', vwap24Hr: '95000.00' },
+  { symbol: 'ETH', priceUsd: '3350.15', changePercent24Hr: '-1.20', volumeUsd24Hr: '20000000000', marketCapUsd: '400000000000', vwap24Hr: '3400.00' },
+  { symbol: 'SOL', priceUsd: '210.50', changePercent24Hr: '5.60', volumeUsd24Hr: '5000000000', marketCapUsd: '90000000000', vwap24Hr: '200.00' },
+  { symbol: 'BNB', priceUsd: '645.20', changePercent24Hr: '0.50', volumeUsd24Hr: '1000000000', marketCapUsd: '95000000000', vwap24Hr: '644.00' },
+  { symbol: 'XRP', priceUsd: '2.45', changePercent24Hr: '-3.10', volumeUsd24Hr: '3000000000', marketCapUsd: '130000000000', vwap24Hr: '2.55' },
+  { symbol: 'ADA', priceUsd: '1.15', changePercent24Hr: '1.20', volumeUsd24Hr: '800000000', marketCapUsd: '40000000000', vwap24Hr: '1.13' },
+  { symbol: 'DOGE', priceUsd: '0.42', changePercent24Hr: '8.50', volumeUsd24Hr: '6000000000', marketCapUsd: '60000000000', vwap24Hr: '0.39' },
+  { symbol: 'AVAX', priceUsd: '45.20', changePercent24Hr: '-2.50', volumeUsd24Hr: '600000000', marketCapUsd: '18000000000', vwap24Hr: '46.50' },
+  { symbol: 'SUI', priceUsd: '3.85', changePercent24Hr: '12.40', volumeUsd24Hr: '1500000000', marketCapUsd: '10000000000', vwap24Hr: '3.50' },
+  { symbol: 'LINK', priceUsd: '18.50', changePercent24Hr: '1.10', volumeUsd24Hr: '400000000', marketCapUsd: '11000000000', vwap24Hr: '18.30' },
+  { symbol: 'DOT', priceUsd: '8.50', changePercent24Hr: '-0.50', volumeUsd24Hr: '300000000', marketCapUsd: '12000000000', vwap24Hr: '8.55' },
+  { symbol: 'UNI', priceUsd: '12.40', changePercent24Hr: '4.20', volumeUsd24Hr: '500000000', marketCapUsd: '9000000000', vwap24Hr: '11.90' },
+  { symbol: 'PEPE', priceUsd: '0.000021', changePercent24Hr: '-6.50', volumeUsd24Hr: '1200000000', marketCapUsd: '8000000000', vwap24Hr: '0.000023' },
+  { symbol: 'LTC', priceUsd: '115.00', changePercent24Hr: '0.10', volumeUsd24Hr: '400000000', marketCapUsd: '8500000000', vwap24Hr: '114.80' },
+  { symbol: 'NEAR', priceUsd: '7.80', changePercent24Hr: '3.40', volumeUsd24Hr: '500000000', marketCapUsd: '8000000000', vwap24Hr: '7.60' },
+];
+
+// Helper to determine signal based on Real Price Action vs VWAP and Trends
+const calculateSignal = (price: number, vwap: number, change24h: number, timeframeMultiplier: number): SignalDirection => {
+  const deviation = (price - vwap) / vwap; 
+  const momentum = change24h / 100; 
+  const score = (deviation * 2) + (momentum * timeframeMultiplier);
+
+  if (score > 0.04) return 'STRONG_BUY';
+  if (score > 0.01) return 'BUY';
+  if (score < -0.04) return 'STRONG_SELL';
+  if (score < -0.01) return 'SELL';
+  return 'NEUTRAL';
+};
+
+const generateMockHistory = (currentPrice: number, change24h: number): number[] => {
   const history = [];
-  for (let i = 0; i < points; i++) {
-    const change = (Math.random() - 0.5) * (startPrice * 0.02);
-    currentPrice += change;
-    history.push(currentPrice);
+  let price = currentPrice / (1 + (change24h / 100)); 
+  const steps = 24;
+  const stepSize = (currentPrice - price) / steps;
+  
+  for (let i = 0; i < steps; i++) {
+    const noise = (Math.random() - 0.5) * (currentPrice * 0.02);
+    price += stepSize + noise;
+    history.push(price);
   }
   return history;
 };
 
-// Helper to determine signal based on mock technicals
-const calculateSignal = (trend: number, oiChange: number, funding: number, timeframeNoise: number): SignalDirection => {
-  const score = (trend * 2) + (oiChange * 1.5) - (funding * 100) + timeframeNoise;
+// Internal Processor
+const processCoinData = (rawCoins: any[]) => {
+  let totalCap = 0;
+  let totalVol = 0;
   
-  if (score > 6) return 'STRONG_BUY';
-  if (score > 2) return 'BUY';
-  if (score < -6) return 'STRONG_SELL';
-  if (score < -2) return 'SELL';
-  return 'NEUTRAL';
-};
+  const coins: CoinData[] = rawCoins.map((coin: any) => {
+    const price = parseFloat(coin.priceUsd);
+    const vwap = parseFloat(coin.vwap24Hr) || price;
+    const change24h = parseFloat(coin.changePercent24Hr);
+    const marketCap = parseFloat(coin.marketCapUsd);
+    const volume = parseFloat(coin.volumeUsd24Hr);
 
-// Simulate fetching data from CoinGlass
-export const fetchMarketData = async (): Promise<{ coins: CoinData[]; sentiment: MarketSentiment }> => {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 600));
+    if (!isNaN(marketCap)) totalCap += marketCap;
+    if (!isNaN(volume)) totalVol += volume;
 
-  const sentiment: MarketSentiment = {
-    fearGreedIndex: Math.floor(Math.random() * (80 - 20) + 20), // Random 20-80
-    btcDominance: 52.4 + (Math.random() - 0.5),
-    totalMarketCap: 2400000000000 + (Math.random() * 100000000000),
-    totalVolume24h: 85000000000 + (Math.random() * 5000000000),
-  };
-
-  const coins: CoinData[] = COINS.map(symbol => {
-    const basePrice = symbol === 'BTC' ? 64000 : symbol === 'ETH' ? 3400 : Math.random() * 100 + 10;
-    const fundingRate = (Math.random() - 0.4) * 0.05; // Bias slightly negative/positive
-    const oi = Math.random() * 1000000000 + 50000000;
+    // Derived Metrics Logic (Modelled on real price action)
+    const volatilityScore = Math.abs(change24h);
     
-    // Simulate timeframe changes
-    const chg1h = (Math.random() - 0.5) * 2;
-    const chg4h = (Math.random() - 0.5) * 5;
-    const oiChg1h = (Math.random() - 0.5) * 3;
-    const oiChg4h = (Math.random() - 0.5) * 8;
+    // Funding Rate Model: High bullish momentum -> High funding
+    const fundingRate = (change24h * 0.012) + ((Math.random() - 0.5) * 0.005);
+    
+    // Open Interest Model: Volume * Factor + Trend
+    const oiBase = volume * 0.15; 
+    const openInterest = oiBase * (1 + (Math.random() * 0.1));
+
+    // Liquidation Model: Volume * Volatility Factor
+    // If price dropped hard (change24h < -5), huge long liquidations
+    const liquidationFactor = volatilityScore > 5 ? 0.05 : 0.01;
+    const liquidations24h = volume * liquidationFactor;
 
     return {
-      symbol,
-      price: basePrice + (Math.random() - 0.5) * (basePrice * 0.01),
-      priceChange1h: chg1h,
-      priceChange4h: chg4h,
-      priceChange24h: (Math.random() - 0.5) * 10,
-      fundingRate, // 0.01% standard baseline
-      openInterest: oi,
-      openInterestChange1h: oiChg1h,
-      openInterestChange4h: oiChg4h,
-      longRatio: 40 + Math.random() * 20,
-      shortRatio: 0, // Calculated later
-      liquidations24h: Math.random() * 5000000,
-      volatility: Math.random() * 100,
-      history: generateRandomHistory(basePrice),
+      symbol: coin.symbol,
+      price: price,
+      priceChange1h: change24h / 12 + (Math.random() - 0.5), 
+      priceChange4h: change24h / 4 + (Math.random() - 0.5),
+      priceChange24h: change24h,
+      fundingRate: parseFloat(fundingRate.toFixed(4)),
+      openInterest: openInterest,
+      openInterestChange1h: (Math.random() - 0.5) * 1.5,
+      openInterestChange4h: (Math.random() - 0.5) * 3,
+      longRatio: 50 + (change24h * 1.5), 
+      shortRatio: 50 - (change24h * 1.5),
+      liquidations24h: liquidations24h,
+      volatility: volatilityScore,
+      history: generateMockHistory(price, change24h),
       signals: {
-        '5m': calculateSignal(chg1h * 3, oiChg1h, fundingRate, (Math.random() - 0.5) * 10), // More noise in 5m
-        '15m': calculateSignal(chg1h * 1.5, oiChg1h, fundingRate, (Math.random() - 0.5) * 5),
-        '1h': calculateSignal(chg1h, oiChg1h, fundingRate, 0),
-        '4h': calculateSignal(chg4h, oiChg4h, fundingRate, 0),
+        '5m': calculateSignal(price, vwap, change24h, 0.4), 
+        '15m': calculateSignal(price, vwap, change24h, 0.8),
+        '1h': calculateSignal(price, vwap, change24h, 1.5),
+        '4h': calculateSignal(price, vwap, change24h, 3.0),
       }
     };
-  }).map(c => ({
-    ...c,
-    shortRatio: 100 - c.longRatio
-  }));
+  });
 
-  return { coins, sentiment };
+  // Safe BTC Dominance Calc
+  let btcDominance = 0;
+  const btcCoin = rawCoins.find((c: any) => c.symbol === 'BTC');
+  if (btcCoin && totalCap > 0) {
+     btcDominance = (parseFloat(btcCoin.marketCapUsd) / totalCap) * 100;
+  } else {
+    // Fallback if BTC not in list
+    btcDominance = 52.5; 
+  }
+
+  // Sentiment Algo
+  const avgChange = coins.reduce((acc, c) => acc + c.priceChange24h, 0) / (coins.length || 1);
+  let fearGreed = 50 + (avgChange * 8); // Higher multiplier for sensitivity
+  fearGreed = Math.max(15, Math.min(95, fearGreed));
+
+  return {
+    coins,
+    sentiment: {
+      fearGreedIndex: Math.floor(fearGreed),
+      btcDominance: btcDominance,
+      totalMarketCap: totalCap,
+      totalVolume24h: totalVol,
+    }
+  };
 };
 
-export const filterOpportunities = (coins: CoinData[]) => {
-  const opportunities = [];
+// Main Fetch Function with Fail-Safe
+export const fetchMarketData = async (): Promise<{ coins: CoinData[]; sentiment: MarketSentiment; source: 'API' | 'BACKUP' }> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-  // 1. High Negative Funding (Potential Short Squeeze/Long Signal)
-  const highNegFunding = coins.filter(c => c.fundingRate < -0.02);
-  highNegFunding.forEach(c => opportunities.push({
-    type: 'BULLISH',
-    coin: c.symbol,
-    reason: 'Negative Funding Rate',
-    metric: 'Funding',
-    value: `${c.fundingRate.toFixed(4)}%`
-  }));
+    const response = await fetch(COINCAP_API, { signal: controller.signal });
+    clearTimeout(timeoutId);
 
-  // 2. High Positive Funding (Overcrowded Longs)
-  const highPosFunding = coins.filter(c => c.fundingRate > 0.05);
-  highPosFunding.forEach(c => opportunities.push({
-    type: 'BEARISH',
-    coin: c.symbol,
-    reason: 'High Funding Rate',
-    metric: 'Funding',
-    value: `${c.fundingRate.toFixed(4)}%`
-  }));
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
 
-  // 3. OI Up + Price Down (Aggressive Shorting)
-  const aggressiveShorting = coins.filter(c => c.openInterestChange1h > 2 && c.priceChange1h < -1);
-  aggressiveShorting.forEach(c => opportunities.push({
-    type: 'BEARISH',
-    coin: c.symbol,
-    reason: 'OI Rising while Price Drops',
-    metric: 'OI Div',
-    value: `OI +${c.openInterestChange1h.toFixed(1)}%`
-  }));
+    const data = await response.json();
+    
+    if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+      throw new Error("Invalid Data Structure");
+    }
 
-  return opportunities;
+    const processed = processCoinData(data.data);
+    return { ...processed, source: 'API' };
+
+  } catch (error) {
+    console.warn("Market Data Fetch Failed (Using Backup):", error);
+    // Return Fallback Data so UI never breaks
+    const processed = processCoinData(FALLBACK_DATA);
+    return { ...processed, source: 'BACKUP' };
+  }
 };
