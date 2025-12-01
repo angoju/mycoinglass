@@ -1,0 +1,5 @@
+{
+  "name": "Sentinels - Crypto Sentiment Dashboard",
+  "description": "Real-time crypto market sentiment analysis dashboard featuring liquidation tracking, funding rates, open interest trends, and AI-powered opportunity analysis.",
+  "requestFramePermissions": []
+}
