@@ -19,30 +19,35 @@ export const analyzeMarket = async (coins: CoinData[], sentiment: MarketSentimen
   }
 
   try {
-    // Prepare a lightweight summary of the data to avoid token limits
+    // Prepare a richer summary of the data (Top 15 coins)
     const topMovers = coins
       .sort((a, b) => Math.abs(b.priceChange24h) - Math.abs(a.priceChange24h))
-      .slice(0, 8)
-      .map(c => `${c.symbol}: $${c.price.toFixed(2)} (24h: ${c.priceChange24h.toFixed(2)}%, Funding: ${c.fundingRate.toFixed(4)}%)`);
+      .slice(0, 15)
+      .map(c => `${c.symbol}: $${c.price.toFixed(2)} (24h: ${c.priceChange24h.toFixed(2)}%, Funding: ${c.fundingRate.toFixed(4)}%, OI 1h: ${c.openInterestChange1h.toFixed(2)}%)`);
 
     const context = `
       Market Context:
       Fear & Greed: ${sentiment.fearGreedIndex}
       BTC Dominance: ${sentiment.btcDominance.toFixed(1)}%
       
-      Top Assets Data:
+      Top Volatility Assets Data:
       ${topMovers.join('\n')}
     `;
 
     const prompt = `
-      You are an expert crypto trader using Smart Money Concepts. Analyze the provided market data.
+      You are an expert crypto trader using Smart Money Concepts and Price Action. Analyze the provided market data.
       
       ${context}
 
       1. Provide a concise market summary.
       2. Identify 3 key risks.
-      3. Give an overall outlook.
-      4. Suggest 2 high-probability trade setups (1 Long, 1 Short if possible) based on the momentum and funding rates provided. Include Entry, Target, and Stop Loss.
+      3. Give an overall outlook (Bullish/Bearish/Neutral).
+      4. Suggest 6 high-probability trade setups (Mix of Longs and Shorts).
+         - Analyze both Majors (BTC/ETH) and Altcoins.
+         - Precise Entry Price
+         - Take Profit Target
+         - Stop Loss Level
+         - Technical Rationale
 
       Return strictly as JSON.
     `;

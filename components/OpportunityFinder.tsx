@@ -25,7 +25,7 @@ export const OpportunityFinder: React.FC<OpportunityFinderProps> = ({ opportunit
               <BrainCircuit className="text-indigo-400" />
               Gemini Trade Desk
             </h3>
-            <p className="text-indigo-200/70 text-sm mt-1">Smart Money Concepts & Setups</p>
+            <p className="text-indigo-200/70 text-sm mt-1">Smart Money Concepts & Setups (Long/Short)</p>
           </div>
           <button 
             onClick={onRefreshAI}
@@ -38,7 +38,7 @@ export const OpportunityFinder: React.FC<OpportunityFinderProps> = ({ opportunit
 
         {loading ? (
            <div className="h-40 flex items-center justify-center text-indigo-300/50 animate-pulse">
-             Analyzing market structure and identifying setups...
+             Scanning market for high-probability setups across Majors and Alts...
            </div>
         ) : (
           <div className="relative z-10 space-y-4 flex-1">
@@ -48,8 +48,8 @@ export const OpportunityFinder: React.FC<OpportunityFinderProps> = ({ opportunit
               </p>
             </div>
             
-            {/* Trade Setups Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+            {/* Trade Setups Grid - Expanded to 3 columns on large screens */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-2">
               {aiAnalysis?.topTradeSetups?.map((setup, idx) => (
                 <div key={idx} className="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 hover:border-indigo-500/50 transition-colors">
                   <div className="flex justify-between items-center mb-2">
@@ -74,7 +74,7 @@ export const OpportunityFinder: React.FC<OpportunityFinderProps> = ({ opportunit
                       <span className="font-mono text-red-400">{setup.stopLoss}</span>
                     </div>
                   </div>
-                  <div className="text-[10px] text-gray-400 border-t border-gray-800 pt-2 mt-1">
+                  <div className="text-[10px] text-gray-400 border-t border-gray-800 pt-2 mt-1 truncate" title={setup.rationale}>
                     {setup.rationale}
                   </div>
                 </div>
@@ -85,7 +85,7 @@ export const OpportunityFinder: React.FC<OpportunityFinderProps> = ({ opportunit
       </div>
 
       {/* Algorithmic Signals */}
-      <div className="bg-crypto-card p-0 rounded-xl border border-gray-800 flex flex-col h-full overflow-hidden max-h-[400px]">
+      <div className="bg-crypto-card p-0 rounded-xl border border-gray-800 flex flex-col h-full overflow-hidden max-h-[600px]">
         <div className="p-4 border-b border-gray-800 bg-gray-900/50">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <Zap className="text-yellow-400" size={20} />

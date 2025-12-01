@@ -8,7 +8,6 @@ import { FundingTable } from './components/FundingTable';
 import { OpportunityFinder } from './components/OpportunityFinder';
 import { TradingSignals } from './components/TradingSignals';
 import { Activity, BarChart2, TrendingUp, RefreshCw } from './components/Icons';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 function App() {
   const [coins, setCoins] = useState<CoinData[]>([]);
@@ -148,42 +147,9 @@ function App() {
         {/* Main Data Panels */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
           
-          {/* Left: Trading Signals (NEW) */}
-          <div className="lg:col-span-1 h-[28rem]">
+          {/* Left: Trading Signals (EXPANDED to 2 cols) */}
+          <div className="lg:col-span-2 h-[28rem]">
              <TradingSignals coins={coins} />
-          </div>
-
-          {/* Center: Open Interest Monitor (Sparklines) */}
-          <div className="lg:col-span-1 h-[28rem] bg-crypto-card rounded-xl border border-gray-800 flex flex-col">
-             <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span className="w-2 h-6 bg-blue-500 rounded-full"></span>
-                OI Trend (1H)
-              </h3>
-            </div>
-            <div className="overflow-y-auto flex-1 p-2 space-y-1">
-              {coins.slice(0, 7).map(coin => (
-                <div key={coin.symbol} className="p-2 hover:bg-gray-800/50 rounded flex items-center justify-between">
-                  <div className="w-20">
-                    <div className="font-bold text-sm">{coin.symbol}</div>
-                    <div className="text-xs text-gray-500">${coin.price.toFixed(2)}</div>
-                  </div>
-                  <div className="h-10 w-24">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={coin.history.map((v, i) => ({i, v}))}>
-                           <Line type="monotone" dataKey="v" stroke={coin.priceChange1h > 0 ? '#10b981' : '#ef4444'} strokeWidth={2} dot={false} />
-                        </LineChart>
-                     </ResponsiveContainer>
-                  </div>
-                  <div className="text-right w-20">
-                     <div className={`text-sm font-bold ${coin.openInterestChange1h > 0 ? 'text-blue-400' : 'text-gray-400'}`}>
-                       {coin.openInterestChange1h > 0 ? '+' : ''}{coin.openInterestChange1h.toFixed(2)}%
-                     </div>
-                     <div className="text-[10px] text-gray-500">OI Change</div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Right: Funding & Liquidations */}

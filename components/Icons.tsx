@@ -9,7 +9,8 @@ import {
   RefreshCw,
   BrainCircuit,
   DollarSign,
-  Target
+  Target,
+  Minus
 } from 'lucide-react';
 
 export { 
@@ -22,5 +23,6 @@ export {
   RefreshCw,
   BrainCircuit,
   DollarSign,
-  Target
+  Target,
+  Minus
 };
