@@ -1,3 +1,4 @@
+
 import { CoinData, MarketSentiment, SignalDirection } from '../types';
 
 // API Configuration
@@ -91,14 +92,25 @@ const processCoinData = (rawCoins: any[], isFallback: boolean = false) => {
     const openInterest = oiBase * (1 + (Math.random() * 0.1));
 
     // Liquidation Model
-    const liquidationFactor = volatilityScore > 5 ? 0.05 : 0.01;
-    const liquidations24h = volume * liquidationFactor;
+    // Reduced factor significantly to be realistic (Millions not Billions)
+    // 0.8% - 2.0% of volume is a reasonable proxy for liquidations during volatility
+    const liquidationFactor = volatilityScore > 5 ? 0.020 : 0.008;
+    const liq24h = volume * liquidationFactor;
+
+    // Distribute 24h liquidations into timeframes for realistic dynamic data
+    const liquidations = {
+        '1h': liq24h * 0.052,
+        '4h': liq24h * 0.185,
+        '12h': liq24h * 0.54,
+        '24h': liq24h
+    };
 
     return {
       symbol: coin.symbol,
       price: price,
       priceChange1h: change24h / 12 + (Math.random() - 0.5), 
       priceChange4h: change24h / 4 + (Math.random() - 0.5),
+      priceChange12h: change24h / 2 + (Math.random() - 0.5),
       priceChange24h: change24h,
       fundingRate: parseFloat(fundingRate.toFixed(4)),
       openInterest: openInterest,
@@ -106,7 +118,8 @@ const processCoinData = (rawCoins: any[], isFallback: boolean = false) => {
       openInterestChange4h: (Math.random() - 0.5) * 3,
       longRatio: 50 + (change24h * 1.5), 
       shortRatio: 50 - (change24h * 1.5),
-      liquidations24h: liquidations24h,
+      liquidations: liquidations,
+      liquidations24h: liq24h,
       volatility: volatilityScore,
       history: generateMockHistory(price, change24h),
       signals: {

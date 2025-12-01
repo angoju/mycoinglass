@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchMarketData } from './services/cryptoService';
 import { analyzeMarket } from './services/geminiService';
-import { CoinData, MarketSentiment, AIAnalysisResult, MarketDataResponse } from './types';
+import { CoinData, MarketSentiment, AIAnalysisResult, MarketDataResponse, TimeFrame } from './types';
 import { MetricCard } from './components/MetricCard';
 import { Liquidations } from './components/Liquidations';
 import { FundingTable } from './components/FundingTable';
@@ -17,6 +18,7 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [dataSource, setDataSource] = useState<'API' | 'BACKUP'>('API');
+  const [timeframe, setTimeframe] = useState<TimeFrame>('24h');
   
   // Prevent overlapping fetches if API is slow
   const isFetchingRef = useRef(false);
@@ -72,6 +74,34 @@ function App() {
 
   const toggleAutoRefresh = () => setIsAutoRefresh(!isAutoRefresh);
 
+  // Helper for heatmap colors
+  const getHeatmapColor = (change: number) => {
+    if (change > 3) return 'bg-emerald-500 text-black';
+    if (change > 0.5) return 'bg-emerald-500/80 text-white';
+    if (change > 0) return 'bg-emerald-500/40 text-emerald-100';
+    if (change < -3) return 'bg-red-500 text-white';
+    if (change < -0.5) return 'bg-red-500/80 text-white';
+    return 'bg-red-500/40 text-red-100';
+  };
+
+  const formatHeatmapValue = (val: number) => {
+    if (val > 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+    return `$${(val / 1000).toFixed(0)}K`;
+  };
+
+  // Helper to get correct data based on selected timeframe
+  const getCoinMetrics = (coin: CoinData) => {
+    const liq = coin.liquidations[timeframe] || 0;
+    let change = 0;
+    switch(timeframe) {
+      case '1h': change = coin.priceChange1h; break;
+      case '4h': change = coin.priceChange4h; break;
+      case '12h': change = coin.priceChange12h; break;
+      case '24h': change = coin.priceChange24h; break;
+    }
+    return { liq, change };
+  };
+
   if (!sentiment) {
     return (
       <div className="min-h-screen bg-crypto-dark flex items-center justify-center text-crypto-accent flex-col gap-4">
@@ -80,6 +110,12 @@ function App() {
       </div>
     );
   }
+
+  // Pre-calculate metrics for Heatmap render to avoid clutter
+  const coinMetrics = coins.map(c => ({
+    symbol: c.symbol,
+    ...getCoinMetrics(c)
+  }));
 
   return (
     <div className="min-h-screen bg-crypto-dark text-crypto-text p-4 md:p-6 lg:p-8 font-sans">
@@ -174,28 +210,65 @@ function App() {
 
         </div>
 
-        {/* Bottom Section: Liquidations Chart & Heatmap */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Liquidations coins={coins} />
-             <div className="flex-1 bg-crypto-card p-4 rounded-xl border border-gray-800 h-64">
-                <h3 className="font-semibold text-sm mb-3 text-gray-400">1H Price Heatmap</h3>
-                <div className="grid grid-cols-8 gap-2 h-44 content-start">
-                   {coins.slice(0, 24).map(coin => (
-                     <div 
-                      key={coin.symbol} 
-                      className={`rounded flex items-center justify-center text-xs font-bold cursor-help transition-transform hover:scale-105 h-10 ${
-                        coin.priceChange1h > 1.5 ? 'bg-green-500 text-black' :
-                        coin.priceChange1h > 0 ? 'bg-green-500/30 text-green-300' :
-                        coin.priceChange1h < -1.5 ? 'bg-red-500 text-white' :
-                        'bg-red-500/30 text-red-300'
-                      }`}
-                      title={`${coin.symbol}: ${coin.priceChange1h.toFixed(2)}%`}
-                     >
-                       {coin.symbol}
-                     </div>
-                   ))}
+        {/* Bottom Section: Heatmap & Liquidations */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-auto md:h-[22rem]">
+            {/* Left: Heatmap */}
+            <div className="bg-crypto-card p-5 rounded-xl border border-gray-800 flex flex-col overflow-hidden shadow-lg h-[22rem]">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                      <span className="w-1.5 h-6 bg-red-500 rounded-full"></span>
+                      Liquidation Heatmap
+                  </h3>
+                   <div className="flex gap-2 text-xs">
+                     {(['1h', '4h', '12h', '24h'] as TimeFrame[]).map(tf => (
+                        <button 
+                          key={tf}
+                          onClick={() => setTimeframe(tf)}
+                          className={`px-2 py-1 rounded font-medium transition-colors ${timeframe === tf ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                        >
+                          {tf.replace('h', ' hour')}
+                        </button>
+                     ))}
+                   </div>
                 </div>
-             </div>
+
+                {/* Simulated Treemap Grid */}
+                <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-1.5 min-h-0">
+                     {/* BTC Block - Large Left */}
+                     <div className={`col-span-2 row-span-4 rounded-lg p-4 flex flex-col justify-center items-center transition-all hover:brightness-110 cursor-pointer ${getHeatmapColor(coinMetrics[0]?.change || 0)}`}>
+                        <span className="text-3xl font-bold mb-1">{coinMetrics[0]?.symbol}</span>
+                        <span className="text-lg font-mono opacity-90">{formatHeatmapValue(coinMetrics[0]?.liq || 0)}</span>
+                     </div>
+                     
+                     {/* ETH Block - Top Right */}
+                     <div className={`col-span-2 row-span-2 rounded-lg p-3 flex flex-col justify-center items-center transition-all hover:brightness-110 cursor-pointer ${getHeatmapColor(coinMetrics[1]?.change || 0)}`}>
+                        <span className="text-2xl font-bold mb-1">{coinMetrics[1]?.symbol}</span>
+                         <span className="text-sm font-mono opacity-90">{formatHeatmapValue(coinMetrics[1]?.liq || 0)}</span>
+                     </div>
+                     
+                     {/* Mid-tier Coins */}
+                     <div className={`col-span-1 row-span-1 rounded-lg flex flex-col justify-center items-center transition-all hover:brightness-110 ${getHeatmapColor(coinMetrics[2]?.change || 0)}`}>
+                         <span className="text-xs font-bold">{coinMetrics[2]?.symbol}</span>
+                         <span className="text-[10px] opacity-80">{formatHeatmapValue(coinMetrics[2]?.liq || 0)}</span>
+                     </div>
+                     <div className={`col-span-1 row-span-1 rounded-lg flex flex-col justify-center items-center transition-all hover:brightness-110 ${getHeatmapColor(coinMetrics[3]?.change || 0)}`}>
+                         <span className="text-xs font-bold">{coinMetrics[3]?.symbol}</span>
+                         <span className="text-[10px] opacity-80">{formatHeatmapValue(coinMetrics[3]?.liq || 0)}</span>
+                     </div>
+                     
+                     {/* Small Coins Row */}
+                     {coinMetrics.slice(4, 8).map((c, i) => (
+                       <div key={c.symbol} className={`col-span-1 row-span-1 rounded-lg flex flex-col justify-center items-center transition-all hover:brightness-110 ${getHeatmapColor(c.change)}`}>
+                           <span className="text-xs font-bold">{c.symbol}</span>
+                       </div>
+                     ))}
+                </div>
+            </div>
+
+            {/* Right: Total Liquidations Grid */}
+            <div className="h-[22rem]">
+               <Liquidations coins={coins} />
+            </div>
         </div>
       </main>
     </div>

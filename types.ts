@@ -4,6 +4,7 @@ export interface CoinData {
   price: number;
   priceChange1h: number;
   priceChange4h: number;
+  priceChange12h: number; // Added 12h
   priceChange24h: number;
   fundingRate: number; // In percentage, e.g., 0.01
   openInterest: number; // In USD
@@ -11,7 +12,13 @@ export interface CoinData {
   openInterestChange4h: number; // Percentage
   longRatio: number; // 0-100
   shortRatio: number; // 0-100
-  liquidations24h: number; // In USD
+  liquidations: {
+    '1h': number;
+    '4h': number;
+    '12h': number;
+    '24h': number;
+  };
+  liquidations24h: number; // Keep for backward compatibility if needed, but prefer object above
   volatility: number; // Arbitrary score 0-100
   history: number[]; // For sparklines
   signals: {
