@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchMarketData } from './services/cryptoService';
 import { analyzeMarket } from './services/geminiService';
 import { CoinData, MarketSentiment, AIAnalysisResult, MarketDataResponse } from './types';
@@ -17,8 +17,14 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [dataSource, setDataSource] = useState<'API' | 'BACKUP'>('API');
+  
+  // Prevent overlapping fetches if API is slow
+  const isFetchingRef = useRef(false);
 
   const loadData = useCallback(async () => {
+    if (isFetchingRef.current) return null;
+    isFetchingRef.current = true;
+    
     try {
       const data: MarketDataResponse = await fetchMarketData();
       setCoins(data.coins);
@@ -29,6 +35,8 @@ function App() {
     } catch (e) {
       console.error("Failed to fetch data", e);
       return null;
+    } finally {
+      isFetchingRef.current = false;
     }
   }, []);
 
@@ -53,12 +61,12 @@ function App() {
     });
   }, [loadData]);
 
-  // Auto-refresh interval (30s)
+  // Auto-refresh interval (1s for Binance-like feel)
   useEffect(() => {
     if (!isAutoRefresh) return;
     const interval = setInterval(() => {
       loadData();
-    }, 30000);
+    }, 1000); 
     return () => clearInterval(interval);
   }, [isAutoRefresh, loadData]);
 
@@ -68,7 +76,7 @@ function App() {
     return (
       <div className="min-h-screen bg-crypto-dark flex items-center justify-center text-crypto-accent flex-col gap-4">
         <RefreshCw className="animate-spin w-10 h-10" />
-        <span className="font-mono text-sm tracking-wider">INITIALIZING MARKET DATA FEED...</span>
+        <span className="font-mono text-sm tracking-wider">INITIALIZING LIVE FEED...</span>
       </div>
     );
   }
@@ -86,9 +94,9 @@ function App() {
         </div>
         <div className="flex flex-wrap items-center gap-4">
            {dataSource === 'BACKUP' && (
-             <div className="flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-500 text-xs font-bold">
+             <div className="flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded text-yellow-500 text-xs font-bold animate-pulse">
                <AlertTriangle size={12} />
-               OFFLINE MODE
+               SIMULATED LIVE
              </div>
            )}
            <div className="text-xs text-right hidden sm:block">
