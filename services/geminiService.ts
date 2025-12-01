@@ -4,7 +4,6 @@ import { CoinData, MarketSentiment, AIAnalysisResult } from '../types';
 // Initialize the API client
 // Note: API key is assumed to be in process.env.API_KEY
 const apiKey = process.env.API_KEY || 'dummy-key'; 
-// In a real scenario, we handle the missing key gracefully in the UI.
 
 const ai = new GoogleGenAI({ apiKey });
 
@@ -14,7 +13,8 @@ export const analyzeMarket = async (coins: CoinData[], sentiment: MarketSentimen
     return {
       summary: "API Key missing. Please provide a valid Gemini API Key to unlock AI insights. Displaying simulation mode analysis.",
       keyRisks: ["Unknown Volatility", "Data Gaps"],
-      outlook: "Neutral"
+      outlook: "Neutral",
+      topTradeSetups: []
     };
   }
 
@@ -22,36 +22,29 @@ export const analyzeMarket = async (coins: CoinData[], sentiment: MarketSentimen
     // Prepare a lightweight summary of the data to avoid token limits
     const topMovers = coins
       .sort((a, b) => Math.abs(b.priceChange24h) - Math.abs(a.priceChange24h))
-      .slice(0, 5)
-      .map(c => `${c.symbol}: ${c.priceChange24h.toFixed(2)}%`);
-
-    const highFunding = coins
-      .filter(c => Math.abs(c.fundingRate) > 0.03)
-      .map(c => `${c.symbol} (${c.fundingRate.toFixed(3)}%)`);
+      .slice(0, 8)
+      .map(c => `${c.symbol}: $${c.price.toFixed(2)} (24h: ${c.priceChange24h.toFixed(2)}%, Funding: ${c.fundingRate.toFixed(4)}%)`);
 
     const context = `
       Market Context:
       Fear & Greed: ${sentiment.fearGreedIndex}
       BTC Dominance: ${sentiment.btcDominance.toFixed(1)}%
       
-      Top Movers (24h):
-      ${topMovers.join(', ')}
-
-      Unusual Funding Rates:
-      ${highFunding.join(', ')}
+      Top Assets Data:
+      ${topMovers.join('\n')}
     `;
 
     const prompt = `
-      You are a senior crypto market analyst. Analyze the provided market summary.
+      You are an expert crypto trader using Smart Money Concepts. Analyze the provided market data.
       
       ${context}
 
-      Provide:
-      1. A concise 2-sentence market summary.
-      2. A list of 3 key risks or opportunities.
-      3. An overall outlook (Bullish, Bearish, or Neutral).
-      
-      Return as JSON.
+      1. Provide a concise market summary.
+      2. Identify 3 key risks.
+      3. Give an overall outlook.
+      4. Suggest 2 high-probability trade setups (1 Long, 1 Short if possible) based on the momentum and funding rates provided. Include Entry, Target, and Stop Loss.
+
+      Return strictly as JSON.
     `;
 
     const response = await ai.models.generateContent({
@@ -67,7 +60,21 @@ export const analyzeMarket = async (coins: CoinData[], sentiment: MarketSentimen
               type: Type.ARRAY, 
               items: { type: Type.STRING } 
             },
-            outlook: { type: Type.STRING, enum: ["Bullish", "Bearish", "Neutral"] }
+            outlook: { type: Type.STRING, enum: ["Bullish", "Bearish", "Neutral"] },
+            topTradeSetups: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  coin: { type: Type.STRING },
+                  direction: { type: Type.STRING, enum: ["LONG", "SHORT"] },
+                  entry: { type: Type.STRING },
+                  target: { type: Type.STRING },
+                  stopLoss: { type: Type.STRING },
+                  rationale: { type: Type.STRING }
+                }
+              }
+            }
           }
         }
       }
@@ -84,7 +91,8 @@ export const analyzeMarket = async (coins: CoinData[], sentiment: MarketSentimen
     return {
       summary: "AI Analysis currently unavailable. Market shows mixed signals based on technical indicators.",
       keyRisks: ["High Volatility", "Liquidation Cascades"],
-      outlook: "Neutral"
+      outlook: "Neutral",
+      topTradeSetups: []
     };
   }
 };

@@ -8,7 +8,8 @@ import {
   AlertTriangle,
   RefreshCw,
   BrainCircuit,
-  DollarSign
+  DollarSign,
+  Target
 } from 'lucide-react';
 
 export { 
@@ -20,5 +21,6 @@ export {
   AlertTriangle,
   RefreshCw,
   BrainCircuit,
-  DollarSign
+  DollarSign,
+  Target
 };

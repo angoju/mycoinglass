@@ -6,8 +6,9 @@ import { MetricCard } from './components/MetricCard';
 import { Liquidations } from './components/Liquidations';
 import { FundingTable } from './components/FundingTable';
 import { OpportunityFinder } from './components/OpportunityFinder';
-import { Activity, BarChart2, TrendingUp, RefreshCw, AlertTriangle } from './components/Icons';
-import { LineChart, Line, ResponsiveContainer, XAxis } from 'recharts';
+import { TradingSignals } from './components/TradingSignals';
+import { Activity, BarChart2, TrendingUp, RefreshCw } from './components/Icons';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 function App() {
   const [coins, setCoins] = useState<CoinData[]>([]);
@@ -72,9 +73,6 @@ function App() {
     );
   }
 
-  // Fear & Greed Color
-  const fgColor = sentiment.fearGreedIndex > 70 ? 'text-green-500' : sentiment.fearGreedIndex < 30 ? 'text-red-500' : 'text-yellow-500';
-
   return (
     <div className="min-h-screen bg-crypto-dark text-crypto-text p-4 md:p-6 lg:p-8 font-sans">
       <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -113,7 +111,7 @@ function App() {
             title="Fear & Greed" 
             value={sentiment.fearGreedIndex} 
             icon={<Activity size={20} />} 
-            className="border-t-4 border-t-yellow-500" // Styled dynamically usually
+            className="border-t-4 border-t-yellow-500"
             subValue={sentiment.fearGreedIndex > 50 ? "Greed" : "Fear"}
             trend="neutral"
           />
@@ -130,7 +128,7 @@ function App() {
            <div className="bg-crypto-card p-4 rounded-xl border border-gray-800 shadow-lg relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative z-10">
-                <div className="text-crypto-muted text-sm font-medium mb-1">Market State</div>
+                <div className="text-crypto-muted text-sm font-medium mb-1">Market Bias</div>
                 <div className="text-xl font-bold text-white flex items-center gap-2">
                    {aiAnalysis?.outlook || 'Analyzing...'}
                 </div>
@@ -150,13 +148,13 @@ function App() {
         {/* Main Data Panels */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
           
-          {/* Left: Funding Rates */}
-          <div className="lg:col-span-1 h-96">
-            <FundingTable coins={coins} />
+          {/* Left: Trading Signals (NEW) */}
+          <div className="lg:col-span-1 h-[28rem]">
+             <TradingSignals coins={coins} />
           </div>
 
           {/* Center: Open Interest Monitor (Sparklines) */}
-          <div className="lg:col-span-1 h-96 bg-crypto-card rounded-xl border border-gray-800 flex flex-col">
+          <div className="lg:col-span-1 h-[28rem] bg-crypto-card rounded-xl border border-gray-800 flex flex-col">
              <div className="p-4 border-b border-gray-800 flex justify-between items-center">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <span className="w-2 h-6 bg-blue-500 rounded-full"></span>
@@ -188,18 +186,23 @@ function App() {
             </div>
           </div>
 
-          {/* Right: Liquidations */}
-          <div className="lg:col-span-1 flex flex-col gap-6">
+          {/* Right: Funding & Liquidations */}
+          <div className="lg:col-span-1 flex flex-col gap-6 h-[28rem]">
+            <FundingTable coins={coins} />
+          </div>
+
+        </div>
+
+        {/* Bottom Section: Liquidations Chart & Heatmap */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Liquidations coins={coins} />
-            
-            {/* Mini Heatmap Grid */}
-             <div className="flex-1 bg-crypto-card p-4 rounded-xl border border-gray-800">
+             <div className="flex-1 bg-crypto-card p-4 rounded-xl border border-gray-800 h-64">
                 <h3 className="font-semibold text-sm mb-3 text-gray-400">1H Price Heatmap</h3>
-                <div className="grid grid-cols-5 gap-2">
-                   {coins.slice(0, 20).map(coin => (
+                <div className="grid grid-cols-8 gap-2 h-44">
+                   {coins.slice(0, 24).map(coin => (
                      <div 
                       key={coin.symbol} 
-                      className={`aspect-square rounded flex items-center justify-center text-xs font-bold cursor-help transition-transform hover:scale-105 ${
+                      className={`rounded flex items-center justify-center text-xs font-bold cursor-help transition-transform hover:scale-105 ${
                         coin.priceChange1h > 1.5 ? 'bg-green-500 text-black' :
                         coin.priceChange1h > 0 ? 'bg-green-500/30 text-green-300' :
                         coin.priceChange1h < -1.5 ? 'bg-red-500 text-white' :
@@ -212,8 +215,6 @@ function App() {
                    ))}
                 </div>
              </div>
-          </div>
-
         </div>
       </main>
     </div>

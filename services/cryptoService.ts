@@ -1,4 +1,4 @@
-import { CoinData, MarketSentiment } from '../types';
+import { CoinData, MarketSentiment, SignalDirection } from '../types';
 
 // Initial seed data for top coins
 const COINS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'TRX', 'LTC', 'LINK', 'ATOM', 'UNI', 'ETC', 'FIL', 'NEAR', 'AAVE', 'QNT', 'ALGO'];
@@ -12,6 +12,17 @@ const generateRandomHistory = (startPrice: number, points: number = 24): number[
     history.push(currentPrice);
   }
   return history;
+};
+
+// Helper to determine signal based on mock technicals
+const calculateSignal = (trend: number, oiChange: number, funding: number, timeframeNoise: number): SignalDirection => {
+  const score = (trend * 2) + (oiChange * 1.5) - (funding * 100) + timeframeNoise;
+  
+  if (score > 6) return 'STRONG_BUY';
+  if (score > 2) return 'BUY';
+  if (score < -6) return 'STRONG_SELL';
+  if (score < -2) return 'SELL';
+  return 'NEUTRAL';
 };
 
 // Simulate fetching data from CoinGlass
@@ -31,21 +42,33 @@ export const fetchMarketData = async (): Promise<{ coins: CoinData[]; sentiment:
     const fundingRate = (Math.random() - 0.4) * 0.05; // Bias slightly negative/positive
     const oi = Math.random() * 1000000000 + 50000000;
     
+    // Simulate timeframe changes
+    const chg1h = (Math.random() - 0.5) * 2;
+    const chg4h = (Math.random() - 0.5) * 5;
+    const oiChg1h = (Math.random() - 0.5) * 3;
+    const oiChg4h = (Math.random() - 0.5) * 8;
+
     return {
       symbol,
       price: basePrice + (Math.random() - 0.5) * (basePrice * 0.01),
-      priceChange1h: (Math.random() - 0.5) * 2,
-      priceChange4h: (Math.random() - 0.5) * 5,
+      priceChange1h: chg1h,
+      priceChange4h: chg4h,
       priceChange24h: (Math.random() - 0.5) * 10,
       fundingRate, // 0.01% standard baseline
       openInterest: oi,
-      openInterestChange1h: (Math.random() - 0.5) * 3,
-      openInterestChange4h: (Math.random() - 0.5) * 8,
+      openInterestChange1h: oiChg1h,
+      openInterestChange4h: oiChg4h,
       longRatio: 40 + Math.random() * 20,
       shortRatio: 0, // Calculated later
       liquidations24h: Math.random() * 5000000,
       volatility: Math.random() * 100,
-      history: generateRandomHistory(basePrice)
+      history: generateRandomHistory(basePrice),
+      signals: {
+        '5m': calculateSignal(chg1h * 3, oiChg1h, fundingRate, (Math.random() - 0.5) * 10), // More noise in 5m
+        '15m': calculateSignal(chg1h * 1.5, oiChg1h, fundingRate, (Math.random() - 0.5) * 5),
+        '1h': calculateSignal(chg1h, oiChg1h, fundingRate, 0),
+        '4h': calculateSignal(chg4h, oiChg4h, fundingRate, 0),
+      }
     };
   }).map(c => ({
     ...c,

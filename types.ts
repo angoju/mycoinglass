@@ -13,7 +13,15 @@ export interface CoinData {
   liquidations24h: number; // In USD
   volatility: number; // Arbitrary score 0-100
   history: number[]; // For sparklines
+  signals: {
+    '5m': SignalDirection;
+    '15m': SignalDirection;
+    '1h': SignalDirection;
+    '4h': SignalDirection;
+  };
 }
+
+export type SignalDirection = 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL';
 
 export interface MarketSentiment {
   fearGreedIndex: number; // 0-100
@@ -32,8 +40,18 @@ export interface Opportunity {
   value: string;
 }
 
+export interface TradeSetup {
+  coin: string;
+  direction: 'LONG' | 'SHORT';
+  entry: string;
+  target: string;
+  stopLoss: string;
+  rationale: string;
+}
+
 export interface AIAnalysisResult {
   summary: string;
   keyRisks: string[];
   outlook: 'Bullish' | 'Bearish' | 'Neutral';
+  topTradeSetups: TradeSetup[];
 }
